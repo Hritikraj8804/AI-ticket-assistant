@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { addCSRFHeaders } from "../utils/csrf.js";
 
 export default function Tickets() {
   const [form, setForm] = useState({ title: "", description: "" });
@@ -15,7 +16,7 @@ export default function Tickets() {
         method: "GET",
       });
       const data = await res.json();
-      setTickets(data.tickets || []);
+      setTickets(Array.isArray(data) ? data : data.tickets || []);
     } catch (err) {
       console.error("Failed to fetch tickets:", err);
     }
@@ -35,10 +36,10 @@ export default function Tickets() {
     try {
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/tickets`, {
         method: "POST",
-        headers: {
+        headers: addCSRFHeaders({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-        },
+        }),
         body: JSON.stringify(form),
       });
 

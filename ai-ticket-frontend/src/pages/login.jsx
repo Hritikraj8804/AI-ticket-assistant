@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { addCSRFHeaders } from "../utils/csrf.js";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -16,15 +17,15 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
         method: "POST",
-        headers: {
+        headers: addCSRFHeaders({
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify(form),
       });
 
       const data = await res.json();
 
-      if (res.ok) {
+      if (res.ok && data.token && data.user) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         navigate("/");

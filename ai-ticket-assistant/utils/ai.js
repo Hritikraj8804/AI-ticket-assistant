@@ -56,7 +56,7 @@ Ticket information:
     const jsonString = match ? match[1] : raw.trim();
     return JSON.parse(jsonString);
   } catch (e) {
-    console.log("Failed to parse JSON from AI response" + e.message);
+    console.log("Failed to parse JSON from AI response: " + encodeURIComponent(e.message));
     return null; // watch out for this
   }
 };

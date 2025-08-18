@@ -7,6 +7,7 @@ import ticketRoutes from "./routes/ticket.js";
 import { inngest } from "./inngest/client.js";
 import { onUserSignup } from "./inngest/functions/on-signup.js";
 import { onTicketCreated } from "./inngest/functions/on-ticket-create.js";
+import { csrfProtection } from "./middlewares/csrf.js";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -14,8 +15,15 @@ dotenv.config();
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
+app.use(csrfProtection);
+
+app.get("/", (req, res) => res.json({ message: "AI Ticket Assistant API" }));
+app.get("/api", (req, res) => res.json({ message: "AI Ticket Assistant API v1.0" }));
 
 app.use("/api/auth", userRoutes);
 app.use("/api/tickets", ticketRoutes);
@@ -34,4 +42,4 @@ mongoose
     console.log("MongoDB connected ✅");
     app.listen(PORT, () => console.log("🚀 Server at http://localhost:3000"));
   })
-  .catch((err) => console.error("❌ MongoDB error: ", err));
+  .catch((err) => console.error("❌ MongoDB error: ", encodeURIComponent(err.message)));

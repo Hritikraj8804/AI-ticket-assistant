@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
@@ -7,9 +7,14 @@ export default function TicketDetailsPage() {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
+  const token = useMemo(() => localStorage.getItem("token"), []);
 
   useEffect(() => {
+    if (!token) {
+      alert('Please login to view tickets');
+      return;
+    }
+    
     const fetchTicket = async () => {
       try {
         const res = await fetch(
@@ -24,18 +29,17 @@ export default function TicketDetailsPage() {
         if (res.ok) {
           setTicket(data.ticket);
         } else {
-          alert(data.message || "Failed to fetch ticket");
+          console.error('Failed to fetch ticket:', data.message);
         }
       } catch (err) {
-        console.error(err);
-        alert("Something went wrong");
+        console.error('Error fetching ticket:', err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchTicket();
-  }, [id]);
+  }, [id, token]);
 
   if (loading)
     return <div className="text-center mt-10">Loading ticket details...</div>;

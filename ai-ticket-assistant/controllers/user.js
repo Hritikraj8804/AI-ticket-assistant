@@ -1,20 +1,33 @@
-import brcypt from "bcrypt";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
 import { inngest } from "../inngest/client.js";
 
 export const signup = async (req, res) => {
   const { email, password, skills = [] } = req.body;
+  
+  // Sanitize inputs
+  const sanitizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const sanitizedSkills = Array.isArray(skills) ? skills.filter(s => typeof s === 'string') : [];
+  
+  if (!sanitizedEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+  
   try {
-    const hashed = brcypt.hash(password, 10);
-    const user = await User.create({ email, password: hashed, skills });
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await User.create({ 
+      email: sanitizedEmail, 
+      password: hashed, 
+      skills: sanitizedSkills 
+    });
 
     //Fire inngest event
 
     await inngest.send({
       name: "user/signup",
       data: {
-        email,
+        email: sanitizedEmail,
       },
     });
 
@@ -31,12 +44,19 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
+  
+  // Sanitize inputs
+  const sanitizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  
+  if (!sanitizedEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
 
   try {
-    const user = User.findOne({ email });
+    const user = await User.findOne({ email: sanitizedEmail });
     if (!user) return res.status(401).json({ error: "User not found" });
 
-    const isMatch = await brcypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -68,17 +88,28 @@ export const logout = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   const { skills = [], role, email } = req.body;
+  
+  // Sanitize inputs
+  const sanitizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const sanitizedSkills = Array.isArray(skills) ? skills.filter(s => typeof s === 'string') : [];
+  const sanitizedRole = ['user', 'moderator', 'admin'].includes(role) ? role : undefined;
+  
+  if (!sanitizedEmail) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+  
   try {
     if (req.user?.role !== "admin") {
-      return res.status(403).json({ eeor: "Forbidden" });
+      return res.status(403).json({ error: "Forbidden" });
     }
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: sanitizedEmail });
     if (!user) return res.status(401).json({ error: "User not found" });
 
-    await User.updateOne(
-      { email },
-      { skills: skills.length ? skills : user.skills, role }
-    );
+    const updateData = {};
+    if (sanitizedSkills.length > 0) updateData.skills = sanitizedSkills;
+    if (sanitizedRole) updateData.role = sanitizedRole;
+    
+    await User.updateOne({ email: sanitizedEmail }, updateData);
     return res.json({ message: "User updated successfully" });
   } catch (error) {
     res.status(500).json({ error: "Update failed", details: error.message });

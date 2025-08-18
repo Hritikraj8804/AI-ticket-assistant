@@ -1,16 +1,24 @@
 import mongoose from "mongoose";
 
 const ticketSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  status: { type: String, default: "TODO" },
+  title: { type: String, required: true, maxlength: 200 },
+  description: { type: String, required: true, maxlength: 2000 },
+  status: { 
+    type: String, 
+    default: "TODO",
+    enum: ["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]
+  },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     default: null,
   },
-  priority: String,
+  priority: { 
+    type: String, 
+    enum: ["low", "medium", "high"],
+    default: "medium"
+  },
   deadline: Date,
   helpfulNotes: String,
   relatedSkills: [String],

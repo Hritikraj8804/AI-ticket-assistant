@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "./navbar.jsx";
 
-function CheckAuth({ children, protectedRoute }) {
+function CheckAuth({ children, protected: protectedRoute }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +27,12 @@ function CheckAuth({ children, protectedRoute }) {
   if (loading) {
     return <div>loading...</div>;
   }
-  return children;
+  return (
+    <>
+      {protectedRoute && <Navbar />}
+      {children}
+    </>
+  );
 }
 
 export default CheckAuth;

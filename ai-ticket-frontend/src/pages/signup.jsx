@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { addCSRFHeaders } from "../utils/csrf.js";
 
 export default function SignupPage() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -18,9 +19,9 @@ export default function SignupPage() {
         `${import.meta.env.VITE_SERVER_URL}/auth/signup`,
         {
           method: "POST",
-          headers: {
+          headers: addCSRFHeaders({
             "Content-Type": "application/json",
-          },
+          }),
           body: JSON.stringify(form),
         }
       );

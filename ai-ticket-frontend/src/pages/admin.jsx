@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { addCSRFHeaders } from "../utils/csrf.js";
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -46,10 +47,10 @@ export default function AdminPanel() {
         `${import.meta.env.VITE_SERVER_URL}/auth/update-user`,
         {
           method: "POST",
-          headers: {
+          headers: addCSRFHeaders({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-          },
+          }),
           body: JSON.stringify({
             email: editingUser,
             role: formData.role,

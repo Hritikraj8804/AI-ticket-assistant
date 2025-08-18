@@ -29,30 +29,35 @@ export const onTicketCreated = inngest.createFunction(
 
       const relatedskills = await step.run("ai-processing", async () => {
         let skills = [];
-        if (aiResponse) {
+        if (aiResponse && Array.isArray(aiResponse.relatedSkills)) {
+          // Sanitize skills to prevent regex injection
+          const sanitizedSkills = aiResponse.relatedSkills
+            .filter(skill => typeof skill === 'string')
+            .map(skill => skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+          
           await Ticket.findByIdAndUpdate(ticket._id, {
             priority: !["low", "medium", "high"].includes(aiResponse.priority)
               ? "medium"
               : aiResponse.priority,
-            helpfulNotes: aiResponse.helpfulNotes,
+            helpfulNotes: typeof aiResponse.helpfulNotes === 'string' ? aiResponse.helpfulNotes : '',
             status: "IN_PROGRESS",
-            relatedSkills: aiResponse.relatedSkills,
+            relatedSkills: sanitizedSkills,
           });
-          skills = aiResponse.relatedSkills;
+          skills = sanitizedSkills;
         }
         return skills;
       });
 
       const moderator = await step.run("assign-moderator", async () => {
-        let user = await User.findOne({
-          role: "moderator",
-          skills: {
-            $elemMatch: {
-              $regex: relatedskills.join("|"),
-              $options: "i",
+        let user = null;
+        if (relatedskills.length > 0) {
+          user = await User.findOne({
+            role: "moderator",
+            skills: {
+              $in: relatedskills
             },
-          },
-        });
+          });
+        }
         if (!user) {
           user = await User.findOne({
             role: "admin",
@@ -64,20 +69,20 @@ export const onTicketCreated = inngest.createFunction(
         return user;
       });
 
-      await setp.run("send-email-notification", async () => {
+      await step.run("send-email-notification", async () => {
         if (moderator) {
           const finalTicket = await Ticket.findById(ticket._id);
           await sendMail(
             moderator.email,
             "Ticket Assigned",
-            `A new ticket is assigned to you ${finalTicket.title}`
+            `A new ticket is assigned to you: ${encodeURIComponent(finalTicket.title)}`
           );
         }
       });
 
       return { success: true };
     } catch (err) {
-      console.error("❌ Error running the step", err.message);
+      console.error("❌ Error running the step", encodeURIComponent(err.message));
       return { success: false };
     }
   }
