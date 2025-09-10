@@ -15,11 +15,16 @@ export const signup = async (req, res) => {
   }
   
   try {
+    // Check if this is the first user (make them admin)
+    const userCount = await User.countDocuments();
+    const role = userCount === 0 ? 'admin' : 'user';
+    
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ 
       email: sanitizedEmail, 
       password: hashed, 
-      skills: sanitizedSkills 
+      skills: sanitizedSkills,
+      role: role
     });
 
     //Fire inngest event
@@ -126,5 +131,27 @@ export const getUsers = async (req, res) => {
     return res.json(users);
   } catch (error) {
     res.status(500).json({ error: "Update failed", details: error.message });
+  }
+};
+
+// Create admin user (no auth required)
+export const createAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+    
+    const hashed = await bcrypt.hash(password, 10);
+    const admin = await User.create({ 
+      email: email.trim().toLowerCase(), 
+      password: hashed, 
+      role: 'admin'
+    });
+    
+    res.json({ message: 'Admin created successfully', email: admin.email });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

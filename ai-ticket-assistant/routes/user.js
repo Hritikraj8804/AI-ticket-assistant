@@ -5,6 +5,7 @@ import {
   signup,
   updateUser,
   logout,
+  createAdmin,
 } from "../controllers/user.js";
 
 import { authenticate } from "../middlewares/auth.js";
@@ -16,5 +17,6 @@ router.get("/users", authenticate, getUsers);
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/logout", authenticate, logout);
+router.post("/create-admin", createAdmin);
 
 export default router;
