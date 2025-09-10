@@ -79,6 +79,15 @@ export default function SignupPage() {
               {loading ? "Signing up..." : "Sign Up"}
             </button>
           </div>
+          
+          <div className="text-center mt-4">
+            <p className="text-sm">
+              Already have an account?{" "}
+              <a href="/login" className="link link-primary">
+                Login
+              </a>
+            </p>
+          </div>
         </form>
       </div>
     </div>
