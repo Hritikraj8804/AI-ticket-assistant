@@ -9,6 +9,7 @@ import TicketDetailsPage from "./pages/ticket.jsx";
 import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
 import Admin from "./pages/admin.jsx";
+import Profile from "./pages/profile.jsx";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -56,6 +57,14 @@ createRoot(rootElement).render(
           element={
             <CheckAuth protected={true}>
               <Admin />
+            </CheckAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <CheckAuth protected={true}>
+              <Profile />
             </CheckAuth>
           }
         />
