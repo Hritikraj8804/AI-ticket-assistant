@@ -19,9 +19,9 @@ export default function SignupPage() {
         `${import.meta.env.VITE_SERVER_URL}/auth/signup`,
         {
           method: "POST",
-          headers: addCSRFHeaders({
+          headers: {
             "Content-Type": "application/json",
-          }),
+          },
           body: JSON.stringify(form),
         }
       );
@@ -36,8 +36,9 @@ export default function SignupPage() {
         alert(data.message || "Signup failed");
       }
     } catch (err) {
-      alert("Something went wrong");
-      console.error(err);
+      console.error('Signup error:', err);
+      console.error('URL:', `${import.meta.env.VITE_SERVER_URL}/auth/signup`);
+      alert(`Network error: ${err.message}`);
     } finally {
       setLoading(false);
     }
