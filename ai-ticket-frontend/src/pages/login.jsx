@@ -17,9 +17,9 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
         method: "POST",
-        headers: addCSRFHeaders({
+        headers: {
           "Content-Type": "application/json",
-        }),
+        },
         body: JSON.stringify(form),
       });
 
@@ -33,8 +33,9 @@ export default function LoginPage() {
         alert(data.message || "Login failed");
       }
     } catch (err) {
-      alert("Something went wrong");
-      console.error(err);
+      console.error('Login error:', err);
+      console.error('Server URL:', import.meta.env.VITE_SERVER_URL);
+      alert(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
