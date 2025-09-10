@@ -3,33 +3,57 @@ import { addCSRFHeaders } from "../utils/csrf.js";
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTickets: 0,
+    pendingTickets: 0,
+    completedTickets: 0
+  });
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ role: "", skills: "" });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchUsers();
+    fetchTickets();
   }, []);
 
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok) {
         setUsers(data);
-        setFilteredUsers(data);
-      } else {
-        console.error(data.error);
+        setStats(prev => ({ ...prev, totalUsers: data.length }));
       }
     } catch (err) {
       console.error("Error fetching users", err);
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/tickets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ticketArray = Array.isArray(data) ? data : data.tickets || [];
+        setTickets(ticketArray);
+        setStats(prev => ({
+          ...prev,
+          totalTickets: ticketArray.length,
+          pendingTickets: ticketArray.filter(t => t.status === 'TODO' || t.status === 'IN_PROGRESS').length,
+          completedTickets: ticketArray.filter(t => t.status === 'DONE').length
+        }));
+      }
+    } catch (err) {
+      console.error("Error fetching tickets", err);
     }
   };
 
@@ -37,130 +61,260 @@ export default function AdminPanel() {
     setEditingUser(user.email);
     setFormData({
       role: user.role,
-      skills: user.skills?.join(", "),
+      skills: user.skills?.join(", ") || "",
     });
   };
 
   const handleUpdate = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SERVER_URL}/auth/update-user`,
-        {
-          method: "POST",
-          headers: addCSRFHeaders({
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          }),
-          body: JSON.stringify({
-            email: editingUser,
-            role: formData.role,
-            skills: formData.skills
-              .split(",")
-              .map((skill) => skill.trim())
-              .filter(Boolean),
-          }),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/update-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: editingUser,
+          role: formData.role,
+          skills: formData.skills.split(",").map((skill) => skill.trim()).filter(Boolean),
+        }),
+      });
 
-      const data = await res.json();
-      if (!res.ok) {
-        console.error(data.error || "Failed to update user");
-        return;
+      if (res.ok) {
+        setEditingUser(null);
+        setFormData({ role: "", skills: "" });
+        fetchUsers();
       }
-
-      setEditingUser(null);
-      setFormData({ role: "", skills: "" });
-      fetchUsers();
     } catch (err) {
       console.error("Update failed", err);
     }
   };
 
-  const handleSearch = (e) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    setFilteredUsers(
-      users.filter((user) => user.email.toLowerCase().includes(query))
-    );
-  };
+  const StatCard = ({ title, value, icon, color = "primary" }) => (
+    <div className={`stat bg-base-100 shadow rounded-lg`}>
+      <div className="stat-figure text-primary">
+        <div className={`text-3xl text-${color}`}>{icon}</div>
+      </div>
+      <div className="stat-title">{title}</div>
+      <div className={`stat-value text-${color}`}>{value}</div>
+    </div>
+  );
+
+  const TabButton = ({ id, label, active, onClick }) => (
+    <button
+      className={`tab tab-bordered ${active ? 'tab-active' : ''}`}
+      onClick={() => onClick(id)}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto mt-10">
-      <h1 className="text-2xl font-bold mb-6">Admin Panel - Manage Users</h1>
-      <input
-        type="text"
-        className="input input-bordered w-full mb-6"
-        placeholder="Search by email"
-        value={searchQuery}
-        onChange={handleSearch}
-      />
-      {filteredUsers.map((user) => (
-        <div
-          key={user._id}
-          className="bg-base-100 shadow rounded p-4 mb-4 border"
-        >
-          <p>
-            <strong>Email:</strong> {user.email}
-          </p>
-          <p>
-            <strong>Current Role:</strong> {user.role}
-          </p>
-          <p>
-            <strong>Skills:</strong>{" "}
-            {user.skills && user.skills.length > 0
-              ? user.skills.join(", ")
-              : "N/A"}
-          </p>
+    <div className="min-h-screen bg-base-200 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-base-content">Admin Dashboard</h1>
+          <p className="text-base-content/70 mt-2">Manage users, tickets, and system overview</p>
+        </div>
 
-          {editingUser === user.email ? (
-            <div className="mt-4 space-y-2">
-              <select
-                className="select select-bordered w-full"
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-              >
-                <option value="user">User</option>
-                <option value="moderator">Moderator</option>
-                <option value="admin">Admin</option>
-              </select>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard title="Total Users" value={stats.totalUsers} icon="👥" color="primary" />
+          <StatCard title="Total Tickets" value={stats.totalTickets} icon="🎫" color="secondary" />
+          <StatCard title="Pending Tickets" value={stats.pendingTickets} icon="⏳" color="warning" />
+          <StatCard title="Completed" value={stats.completedTickets} icon="✅" color="success" />
+        </div>
 
-              <input
-                type="text"
-                placeholder="Comma-separated skills"
-                className="input input-bordered w-full"
-                value={formData.skills}
-                onChange={(e) =>
-                  setFormData({ ...formData, skills: e.target.value })
-                }
-              />
+        {/* Tabs */}
+        <div className="tabs tabs-bordered mb-6">
+          <TabButton id="dashboard" label="📊 Overview" active={activeTab === "dashboard"} onClick={setActiveTab} />
+          <TabButton id="users" label="👥 Users" active={activeTab === "users"} onClick={setActiveTab} />
+          <TabButton id="tickets" label="🎫 Tickets" active={activeTab === "tickets"} onClick={setActiveTab} />
+        </div>
 
-              <div className="flex gap-2">
-                <button
-                  className="btn btn-success btn-sm"
-                  onClick={handleUpdate}
-                >
-                  Save
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setEditingUser(null)}
-                >
-                  Cancel
-                </button>
+        {/* Tab Content */}
+        {activeTab === "dashboard" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Users */}
+            <div className="card bg-base-100 shadow">
+              <div className="card-body">
+                <h2 className="card-title">Recent Users</h2>
+                <div className="space-y-2">
+                  {users.slice(0, 5).map(user => (
+                    <div key={user._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
+                      <span>{user.email}</span>
+                      <span className={`badge ${user.role === 'admin' ? 'badge-error' : user.role === 'moderator' ? 'badge-warning' : 'badge-info'}`}>
+                        {user.role}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          ) : (
-            <button
-              className="btn btn-primary btn-sm mt-2"
-              onClick={() => handleEditClick(user)}
-            >
-              Edit
-            </button>
-          )}
-        </div>
-      ))}
+
+            {/* Recent Tickets */}
+            <div className="card bg-base-100 shadow">
+              <div className="card-body">
+                <h2 className="card-title">Recent Tickets</h2>
+                <div className="space-y-2">
+                  {tickets.slice(0, 5).map(ticket => (
+                    <div key={ticket._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
+                      <div>
+                        <div className="font-medium truncate">{ticket.title}</div>
+                        <div className="text-sm text-base-content/70">{ticket.priority || 'medium'}</div>
+                      </div>
+                      <span className={`badge ${
+                        ticket.status === 'DONE' ? 'badge-success' : 
+                        ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
+                      }`}>
+                        {ticket.status || 'TODO'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "users" && (
+          <div className="card bg-base-100 shadow">
+            <div className="card-body">
+              <h2 className="card-title mb-4">User Management</h2>
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Skills</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user._id}>
+                        <td>{user.email}</td>
+                        <td>
+                          <span className={`badge ${
+                            user.role === 'admin' ? 'badge-error' : 
+                            user.role === 'moderator' ? 'badge-warning' : 'badge-info'
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            {user.skills?.slice(0, 3).map((skill, idx) => (
+                              <span key={idx} className="badge badge-outline badge-sm">{skill}</span>
+                            ))}
+                            {user.skills?.length > 3 && <span className="text-xs">+{user.skills.length - 3}</span>}
+                          </div>
+                        </td>
+                        <td>
+                          {editingUser === user.email ? (
+                            <div className="flex gap-2">
+                              <button className="btn btn-success btn-sm" onClick={handleUpdate}>Save</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => setEditingUser(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <button className="btn btn-primary btn-sm" onClick={() => handleEditClick(user)}>Edit</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Edit Form Modal */}
+              {editingUser && (
+                <div className="mt-6 p-4 bg-base-200 rounded-lg">
+                  <h3 className="font-bold mb-4">Edit User: {editingUser}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Role</label>
+                      <select
+                        className="select select-bordered w-full"
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      >
+                        <option value="user">User</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Skills (comma-separated)</label>
+                      <input
+                        type="text"
+                        placeholder="React, Node.js, MongoDB"
+                        className="input input-bordered w-full"
+                        value={formData.skills}
+                        onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "tickets" && (
+          <div className="card bg-base-100 shadow">
+            <div className="card-body">
+              <h2 className="card-title mb-4">Ticket Management</h2>
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Status</th>
+                      <th>Priority</th>
+                      <th>Assigned To</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tickets.map((ticket) => (
+                      <tr key={ticket._id}>
+                        <td>
+                          <div className="font-medium">{ticket.title}</div>
+                          <div className="text-sm text-base-content/70 truncate max-w-xs">
+                            {ticket.description}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${
+                            ticket.status === 'DONE' ? 'badge-success' : 
+                            ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
+                          }`}>
+                            {ticket.status || 'TODO'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${
+                            ticket.priority === 'high' ? 'badge-error' : 
+                            ticket.priority === 'medium' ? 'badge-warning' : 'badge-success'
+                          }`}>
+                            {ticket.priority || 'medium'}
+                          </span>
+                        </td>
+                        <td>{ticket.assignedTo?.email || 'Unassigned'}</td>
+                        <td className="text-sm">
+                          {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

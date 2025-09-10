@@ -8,6 +8,7 @@ function CheckAuth({ children, protected: protectedRoute }) {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
 
     if (protectedRoute) {
       if (!token) {
@@ -17,7 +18,12 @@ function CheckAuth({ children, protected: protectedRoute }) {
       }
     } else {
       if (token) {
-        navigate("/");
+        // Redirect based on user role
+        if (user.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         setLoading(false);
       }
