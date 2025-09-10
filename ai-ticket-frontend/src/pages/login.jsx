@@ -28,7 +28,13 @@ export default function LoginPage() {
       if (res.ok && data.token && data.user) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        navigate("/");
+        
+        // Redirect based on user role
+        if (data.user.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         alert(data.message || "Login failed");
       }
