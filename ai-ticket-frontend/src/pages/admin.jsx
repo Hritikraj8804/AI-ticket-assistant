@@ -246,14 +246,32 @@ export default function AdminPanel() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">Skills (comma-separated)</label>
-                      <input
-                        type="text"
-                        placeholder="React, Node.js, MongoDB"
-                        className="input input-bordered w-full"
-                        value={formData.skills}
-                        onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                      />
+                      <label className="label">Skills</label>
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-2">
+                        {[
+                          "React", "Node.js", "JavaScript", "Python", "MongoDB", "PostgreSQL",
+                          "AWS", "Docker", "UI/UX", "Mobile", "DevOps", "Security", "Java",
+                          "PHP", "Vue.js", "Angular", "TypeScript", "Redis", "Kubernetes"
+                        ].map(skill => {
+                          const currentSkills = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
+                          return (
+                            <label key={skill} className="cursor-pointer flex items-center">
+                              <input
+                                type="checkbox"
+                                className="checkbox checkbox-xs mr-1"
+                                checked={currentSkills.includes(skill)}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  const skills = currentSkills.filter(s => s !== skill);
+                                  if (checked) skills.push(skill);
+                                  setFormData({ ...formData, skills: skills.join(', ') });
+                                }}
+                              />
+                              <span className="text-xs">{skill}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -273,6 +291,7 @@ export default function AdminPanel() {
                       <th>Title</th>
                       <th>Status</th>
                       <th>Priority</th>
+                      <th>Created By</th>
                       <th>Assigned To</th>
                       <th>Created</th>
                     </tr>
@@ -301,6 +320,16 @@ export default function AdminPanel() {
                           }`}>
                             {ticket.priority || 'medium'}
                           </span>
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <div className="avatar placeholder">
+                              <div className="bg-neutral text-neutral-content rounded-full w-6 h-6">
+                                <span className="text-xs">{ticket.createdBy?.email?.charAt(0).toUpperCase() || 'U'}</span>
+                              </div>
+                            </div>
+                            <span className="text-sm">{ticket.createdBy?.email || 'Unknown'}</span>
+                          </div>
                         </td>
                         <td>{ticket.assignedTo?.email || 'Unassigned'}</td>
                         <td className="text-sm">

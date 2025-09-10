@@ -23,6 +23,9 @@ export default function Navbar() {
           <Link to="/" className="btn btn-ghost">
             Tickets
           </Link>
+          <Link to="/profile" className="btn btn-ghost">
+            Profile
+          </Link>
           {user.role === "admin" && (
             <Link to="/admin" className="btn btn-ghost">
               Admin

@@ -155,3 +155,21 @@ export const createAdmin = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Update own profile (for existing users to add skills)
+export const updateProfile = async (req, res) => {
+  try {
+    const { skills = [] } = req.body;
+    const sanitizedSkills = Array.isArray(skills) ? skills.filter(s => typeof s === 'string') : [];
+    
+    await User.updateOne(
+      { _id: req.user._id }, 
+      { skills: sanitizedSkills }
+    );
+    
+    const updatedUser = await User.findById(req.user._id).select('-password');
+    res.json({ message: 'Profile updated', user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
