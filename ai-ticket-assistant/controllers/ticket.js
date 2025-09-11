@@ -94,6 +94,16 @@ export const updateTicketStatus = async (req, res) => {
       return res.status(403).json({ message: 'Only admins/moderators can update status' });
     }
     
+    // Check if ticket is already cancelled
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+    
+    if (ticket.status === 'CANCELLED') {
+      return res.status(400).json({ message: 'Cannot update status of cancelled ticket' });
+    }
+    
     await Ticket.findByIdAndUpdate(id, { status });
     return res.status(200).json({ message: 'Status updated' });
   } catch (error) {

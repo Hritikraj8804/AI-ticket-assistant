@@ -366,30 +366,34 @@ export default function AdminPanel() {
                           </div>
                         </td>
                         <td>
-                          <select 
-                            className="select select-bordered select-xs"
-                            value={ticket.status || 'TODO'}
-                            onChange={async (e) => {
-                              try {
-                                const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/tickets/${ticket._id}/status`, {
-                                  method: 'PATCH',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                    Authorization: `Bearer ${token}`
-                                  },
-                                  body: JSON.stringify({ status: e.target.value })
-                                });
-                                if (res.ok) fetchTickets();
-                              } catch (err) {
-                                console.error('Status update failed', err);
-                              }
-                            }}
-                          >
-                            <option value="TODO">TODO</option>
-                            <option value="IN_PROGRESS">IN PROGRESS</option>
-                            <option value="DONE">DONE</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                          </select>
+                          {ticket.status === 'CANCELLED' ? (
+                            <span className="badge badge-error">CANCELLED</span>
+                          ) : (
+                            <select 
+                              className="select select-bordered select-xs"
+                              value={ticket.status || 'TODO'}
+                              onChange={async (e) => {
+                                try {
+                                  const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/tickets/${ticket._id}/status`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ status: e.target.value })
+                                  });
+                                  if (res.ok) fetchTickets();
+                                } catch (err) {
+                                  console.error('Status update failed', err);
+                                }
+                              }}
+                            >
+                              <option value="TODO">TODO</option>
+                              <option value="IN_PROGRESS">IN PROGRESS</option>
+                              <option value="DONE">DONE</option>
+                              <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                          )}
                         </td>
                         <td>
                           <span className={`badge ${

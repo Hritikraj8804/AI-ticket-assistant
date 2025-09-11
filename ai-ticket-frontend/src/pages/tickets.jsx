@@ -268,16 +268,20 @@ export default function Tickets() {
               {/* Status Update for Moderators */}
               {user.role === "moderator" && ticket.assignedTo?._id === user._id && (
                 <div className="ml-4">
-                  <select 
-                    className="select select-bordered select-sm"
-                    value={ticket.status || 'TODO'}
-                    onChange={(e) => updateTicketStatus(ticket._id, e.target.value)}
-                  >
-                    <option value="TODO">TODO</option>
-                    <option value="IN_PROGRESS">IN PROGRESS</option>
-                    <option value="DONE">DONE</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                  </select>
+                  {ticket.status === 'CANCELLED' ? (
+                    <span className="badge badge-error">CANCELLED</span>
+                  ) : (
+                    <select 
+                      className="select select-bordered select-sm"
+                      value={ticket.status || 'TODO'}
+                      onChange={(e) => updateTicketStatus(ticket._id, e.target.value)}
+                    >
+                      <option value="TODO">TODO</option>
+                      <option value="IN_PROGRESS">IN PROGRESS</option>
+                      <option value="DONE">DONE</option>
+                      <option value="CANCELLED">CANCELLED</option>
+                    </select>
+                  )}
                 </div>
               )}
             </div>
