@@ -226,78 +226,80 @@ export default function Tickets() {
         </div>
       )}
 
-      {/* Tickets Display */}
-      <div className="space-y-3">
-        {getFilteredTickets().map((ticket) => (
-          <div key={ticket._id} className="card shadow-md p-4 bg-base-100">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <Link to={`/tickets/${ticket._id}`} className="hover:text-primary">
-                  <h3 className="font-bold text-lg">{ticket.title}</h3>
-                </Link>
-                <p className="text-sm mb-2">{ticket.description}</p>
-                
-                <div className="flex gap-2 mb-2">
-                  <span className={`badge ${
-                    ticket.priority === 'high' ? 'badge-error' : 
-                    ticket.priority === 'medium' ? 'badge-warning' : 'badge-success'
-                  }`}>
-                    {ticket.priority || 'medium'}
-                  </span>
+      {/* Tickets Display - Only show when not on create tab */}
+      {activeTab !== "create" && (
+        <div className="space-y-3">
+          {getFilteredTickets().map((ticket) => (
+            <div key={ticket._id} className="card shadow-md p-4 bg-base-100">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <Link to={`/tickets/${ticket._id}`} className="hover:text-primary">
+                    <h3 className="font-bold text-lg">{ticket.title}</h3>
+                  </Link>
+                  <p className="text-sm mb-2">{ticket.description}</p>
                   
-                  <span className={`badge ${
-                    ticket.status === 'DONE' ? 'badge-success' : 
-                    ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
-                  }`}>
-                    {ticket.status || 'TODO'}
-                  </span>
-                  
-                  {ticket.assignedTo && (
-                    <span className="badge badge-outline">
-                      👤 {ticket.assignedTo.email}
+                  <div className="flex gap-2 mb-2">
+                    <span className={`badge ${
+                      ticket.priority === 'high' ? 'badge-error' : 
+                      ticket.priority === 'medium' ? 'badge-warning' : 'badge-success'
+                    }`}>
+                      {ticket.priority || 'medium'}
                     </span>
-                  )}
+                    
+                    <span className={`badge ${
+                      ticket.status === 'DONE' ? 'badge-success' : 
+                      ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
+                    }`}>
+                      {ticket.status || 'TODO'}
+                    </span>
+                    
+                    {ticket.assignedTo && (
+                      <span className="badge badge-outline">
+                        👤 {ticket.assignedTo.email}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-base-content/70">
+                    Created: {new Date(ticket.createdAt).toLocaleString()}
+                    {ticket.createdBy && ` by ${ticket.createdBy.email}`}
+                  </p>
                 </div>
                 
-                <p className="text-xs text-base-content/70">
-                  Created: {new Date(ticket.createdAt).toLocaleString()}
-                  {ticket.createdBy && ` by ${ticket.createdBy.email}`}
-                </p>
+                {/* Status Update for Moderators */}
+                {user.role === "moderator" && ticket.assignedTo?._id === user._id && (
+                  <div className="ml-4">
+                    {ticket.status === 'CANCELLED' ? (
+                      <span className="badge badge-error">CANCELLED</span>
+                    ) : (
+                      <select 
+                        className="select select-bordered select-sm"
+                        value={ticket.status || 'TODO'}
+                        onChange={(e) => updateTicketStatus(ticket._id, e.target.value)}
+                      >
+                        <option value="TODO">TODO</option>
+                        <option value="IN_PROGRESS">IN PROGRESS</option>
+                        <option value="DONE">DONE</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                      </select>
+                    )}
+                  </div>
+                )}
               </div>
-              
-              {/* Status Update for Moderators */}
-              {user.role === "moderator" && ticket.assignedTo?._id === user._id && (
-                <div className="ml-4">
-                  {ticket.status === 'CANCELLED' ? (
-                    <span className="badge badge-error">CANCELLED</span>
-                  ) : (
-                    <select 
-                      className="select select-bordered select-sm"
-                      value={ticket.status || 'TODO'}
-                      onChange={(e) => updateTicketStatus(ticket._id, e.target.value)}
-                    >
-                      <option value="TODO">TODO</option>
-                      <option value="IN_PROGRESS">IN PROGRESS</option>
-                      <option value="DONE">DONE</option>
-                      <option value="CANCELLED">CANCELLED</option>
-                    </select>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
-        ))}
-        
-        {getFilteredTickets().length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-base-content/70">
-              {user.role === "moderator" && activeTab === "assigned" 
-                ? "No tickets assigned to you yet." 
-                : "No tickets found."}
-            </p>
-          </div>
-        )}
-      </div>
+          ))}
+          
+          {getFilteredTickets().length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-base-content/70">
+                {user.role === "moderator" && activeTab === "assigned" 
+                  ? "No tickets assigned to you yet." 
+                  : "No tickets found."}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
