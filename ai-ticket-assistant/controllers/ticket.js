@@ -58,25 +58,37 @@ export const getTickets = async (req, res) => {
 export const getTicket = async (req, res) => {
   try {
     const user = req.user;
+    const ticketId = req.params.id;
+    console.log(`Fetching ticket ${ticketId} for user ID ${user._id} (${user.role})`);
+    
     let ticket;
 
     if (user.role !== "user") {
-      ticket = await Ticket.findById(req.params.id)
+      ticket = await Ticket.findById(ticketId)
         .populate("assignedTo", ["email", "_id"])
         .populate("createdBy", ["email", "_id"]);
     } else {
       ticket = await Ticket.findOne({
         createdBy: user._id,
-        _id: req.params.id,
-      }).select("title description status createdAt");
+        _id: ticketId,
+      }).populate("createdBy", ["email", "_id"]);
     }
 
     if (!ticket) {
+      console.log(`Ticket ${ticketId} not found for user ID ${user._id}`);
       return res.status(404).json({ message: "Ticket not found" });
     }
+    
+    console.log(`✅ Ticket found and sending response`);
+    console.log('Ticket data:', {
+      id: ticket._id,
+      title: ticket.title,
+      status: ticket.status,
+      priority: ticket.priority
+    });
     return res.status(200).json({ ticket });
   } catch (error) {
-    console.error("Error fetching ticket", encodeURIComponent(error.message));
+    console.error("Error fetching ticket", error.message);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
