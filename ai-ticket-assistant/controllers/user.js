@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
 import { inngest } from "../inngest/client.js";
+import Ticket from "../models/ticket.js";
 
 export const signup = async (req, res) => {
   const { email, password, skills = [] } = req.body;
@@ -111,7 +112,7 @@ export const updateUser = async (req, res) => {
     if (!user) return res.status(401).json({ error: "User not found" });
 
     const updateData = {};
-    if (sanitizedSkills.length > 0) updateData.skills = sanitizedSkills;
+    if (sanitizedSkills.length >= 0) updateData.skills = sanitizedSkills; // Allow empty skills
     if (sanitizedRole) updateData.role = sanitizedRole;
     
     await User.updateOne({ email: sanitizedEmail }, updateData);
@@ -134,6 +135,52 @@ export const getUsers = async (req, res) => {
   }
 };
 
+// One-time refresh for old tickets (admin only)
+export const refreshOldTickets = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // Find tickets without priority or assignment
+    const oldTickets = await Ticket.find({
+      $or: [
+        { priority: { $exists: false } },
+        { priority: null },
+        { assignedTo: null },
+        { helpfulNotes: { $exists: false } }
+      ]
+    }).limit(10);
+    
+    // Debug: Check if admin users exist
+    const adminCount = await User.countDocuments({ role: { $in: ['admin', 'moderator'] } });
+    console.log('🔄 Admin/Moderator users available:', adminCount);
+
+    if (oldTickets.length === 0) {
+      return res.json({ message: "No tickets need refreshing" });
+    }
+
+    // Process each ticket
+    for (const ticket of oldTickets) {
+        await inngest.send({
+        name: "ticket/refresh",
+        data: {
+          ticketId: ticket._id.toString(),
+          title: ticket.title,
+          description: ticket.description,
+        },
+      });
+    }
+
+    res.json({ 
+      message: `Refreshing ${oldTickets.length} tickets`,
+      count: oldTickets.length 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Create admin user (no auth required)
 export const createAdmin = async (req, res) => {
   try {
@@ -151,6 +198,39 @@ export const createAdmin = async (req, res) => {
     });
     
     res.json({ message: 'Admin created successfully', email: admin.email });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Create moderator with skills (admin only)
+export const createModerator = async (req, res) => {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    
+    const { email, password, skills = [] } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+    
+    const sanitizedSkills = Array.isArray(skills) ? skills.filter(s => typeof s === 'string') : [];
+    
+    const hashed = await bcrypt.hash(password, 10);
+    const moderator = await User.create({ 
+      email: email.trim().toLowerCase(), 
+      password: hashed, 
+      role: 'moderator',
+      skills: sanitizedSkills
+    });
+    
+    res.json({ 
+      message: 'Moderator created successfully', 
+      email: moderator.email,
+      skills: moderator.skills 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

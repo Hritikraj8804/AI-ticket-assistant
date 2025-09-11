@@ -135,43 +135,65 @@ export default function AdminPanel() {
 
         {/* Tab Content */}
         {activeTab === "dashboard" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Users */}
-            <div className="card bg-base-100 shadow">
-              <div className="card-body">
-                <h2 className="card-title">Recent Users</h2>
-                <div className="space-y-2">
-                  {users.slice(0, 5).map(user => (
-                    <div key={user._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
-                      <span>{user.email}</span>
-                      <span className={`badge ${user.role === 'admin' ? 'badge-error' : user.role === 'moderator' ? 'badge-warning' : 'badge-info'}`}>
-                        {user.role}
-                      </span>
-                    </div>
-                  ))}
+          <div>
+            <div className="flex justify-end mb-4">
+              <button 
+                className="btn btn-sm btn-outline"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/refresh-tickets`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    alert(data.message || 'Refresh completed');
+                    if (res.ok) fetchTickets();
+                  } catch (err) {
+                    alert('Refresh failed');
+                  }
+                }}
+              >
+                🔄 Refresh Old Tickets
+              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Users */}
+              <div className="card bg-base-100 shadow">
+                <div className="card-body">
+                  <h2 className="card-title">Recent Users</h2>
+                  <div className="space-y-2">
+                    {users.slice(0, 5).map(user => (
+                      <div key={user._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
+                        <span>{user.email}</span>
+                        <span className={`badge ${user.role === 'admin' ? 'badge-error' : user.role === 'moderator' ? 'badge-warning' : 'badge-info'}`}>
+                          {user.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Recent Tickets */}
-            <div className="card bg-base-100 shadow">
-              <div className="card-body">
-                <h2 className="card-title">Recent Tickets</h2>
-                <div className="space-y-2">
-                  {tickets.slice(0, 5).map(ticket => (
-                    <div key={ticket._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
-                      <div>
-                        <div className="font-medium truncate">{ticket.title}</div>
-                        <div className="text-sm text-base-content/70">{ticket.priority || 'medium'}</div>
+              {/* Recent Tickets */}
+              <div className="card bg-base-100 shadow">
+                <div className="card-body">
+                  <h2 className="card-title">Recent Tickets</h2>
+                  <div className="space-y-2">
+                    {tickets.slice(0, 5).map(ticket => (
+                      <div key={ticket._id} className="flex justify-between items-center p-2 hover:bg-base-200 rounded">
+                        <div>
+                          <div className="font-medium truncate">{ticket.title}</div>
+                          <div className="text-sm text-base-content/70">{ticket.priority || 'medium'}</div>
+                        </div>
+                        <span className={`badge ${
+                          ticket.status === 'DONE' ? 'badge-success' : 
+                          ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
+                        }`}>
+                          {ticket.status || 'TODO'}
+                        </span>
                       </div>
-                      <span className={`badge ${
-                        ticket.status === 'DONE' ? 'badge-success' : 
-                        ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
-                      }`}>
-                        {ticket.status || 'TODO'}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -306,12 +328,30 @@ export default function AdminPanel() {
                           </div>
                         </td>
                         <td>
-                          <span className={`badge ${
-                            ticket.status === 'DONE' ? 'badge-success' : 
-                            ticket.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-info'
-                          }`}>
-                            {ticket.status || 'TODO'}
-                          </span>
+                          <select 
+                            className="select select-bordered select-xs"
+                            value={ticket.status || 'TODO'}
+                            onChange={async (e) => {
+                              try {
+                                const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/tickets/${ticket._id}/status`, {
+                                  method: 'PATCH',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${token}`
+                                  },
+                                  body: JSON.stringify({ status: e.target.value })
+                                });
+                                if (res.ok) fetchTickets();
+                              } catch (err) {
+                                console.error('Status update failed', err);
+                              }
+                            }}
+                          >
+                            <option value="TODO">TODO</option>
+                            <option value="IN_PROGRESS">IN PROGRESS</option>
+                            <option value="DONE">DONE</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                          </select>
                         </td>
                         <td>
                           <span className={`badge ${

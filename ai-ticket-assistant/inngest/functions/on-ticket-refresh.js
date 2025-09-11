@@ -2,17 +2,15 @@ import { inngest } from "../client.js";
 import Ticket from "../../models/ticket.js";
 import User from "../../models/user.js";
 import { NonRetriableError } from "inngest";
-import { sendMail } from "../../utils/mailer.js";
 import analyzeTicket from "../../utils/ai.js";
 
-export const onTicketCreated = inngest.createFunction(
-  { id: "on-ticket-created", retries: 2 },
-  { event: "ticket/created" },
+export const onTicketRefresh = inngest.createFunction(
+  { id: "on-ticket-refresh", retries: 1 },
+  { event: "ticket/refresh" },
   async ({ event, step }) => {
     try {
       const { ticketId } = event.data;
 
-      //fetch ticket from DB
       const ticket = await step.run("fetch-ticket", async () => {
         const ticketObject = await Ticket.findById(ticketId);
         if (!ticketObject) {
@@ -21,13 +19,9 @@ export const onTicketCreated = inngest.createFunction(
         return ticketObject;
       });
 
-      await step.run("update-ticket-status", async () => {
-        await Ticket.findByIdAndUpdate(ticket._id, { status: "TODO" });
-      });
-
-      const { aiResponse, relatedskills } = await step.run("ai-processing", async () => {
+      const { relatedskills } = await step.run("ai-analysis", async () => {
         const analysis = await analyzeTicket(ticket);
-        console.log('🤖 AI Response:', analysis);
+        console.log('🔄 Refreshing ticket:', ticket.title, 'Analysis:', analysis);
         
         let skills = [];
         if (analysis && Array.isArray(analysis.relatedSkills)) {
@@ -61,30 +55,27 @@ export const onTicketCreated = inngest.createFunction(
             })
             .filter(skill => skill !== 'General');
           
-          console.log('🎯 Original AI skills:', analysis.relatedSkills);
-          console.log('🎯 Normalized skills:', skills);
+          console.log('🔄 Original AI skills:', analysis.relatedSkills);
+          console.log('🔄 Normalized skills:', skills);
           
           await Ticket.findByIdAndUpdate(ticket._id, {
             priority: ["low", "medium", "high"].includes(analysis.priority)
               ? analysis.priority
               : "medium",
             helpfulNotes: typeof analysis.helpfulNotes === 'string' ? analysis.helpfulNotes : '',
-            status: "TODO",
             relatedSkills: skills,
-          });
-        } else {
-          // Fallback if AI fails
-          await Ticket.findByIdAndUpdate(ticket._id, {
-            priority: "medium",
-            status: "TODO",
-            relatedSkills: [],
           });
         }
         
-        return { aiResponse: analysis, relatedskills: skills };
+        return { relatedskills: skills };
       });
 
-      const moderator = await step.run("assign-moderator", async () => {
+      await step.run("assign-user", async () => {
+        // Debug: Check available users
+        const allUsers = await User.find({ role: { $in: ["moderator", "admin"] } }).select('email role skills');
+        console.log('🔄 Available users for assignment:', allUsers);
+        console.log('🔄 Looking for skills:', relatedskills);
+        
         let user = null;
         if (relatedskills.length > 0) {
           // First try moderators with matching skills
@@ -92,6 +83,7 @@ export const onTicketCreated = inngest.createFunction(
             role: "moderator",
             skills: { $in: relatedskills },
           });
+          console.log('🔄 Found moderator with matching skills:', user?.email);
           
           // Then try admins with matching skills
           if (!user) {
@@ -99,41 +91,35 @@ export const onTicketCreated = inngest.createFunction(
               role: "admin",
               skills: { $in: relatedskills },
             });
+            console.log('🔄 Found admin with matching skills:', user?.email);
           }
         }
         
         // Fallback: any moderator first, then admin
         if (!user) {
           user = await User.findOne({ role: "moderator" });
+          console.log('🔄 Fallback moderator found:', user?.email);
         }
         if (!user) {
           user = await User.findOne({ role: "admin" });
+          console.log('🔄 Fallback admin found:', user?.email);
         }
-        // Debug: Check available users
-        const allUsers = await User.find({ role: { $in: ["moderator", "admin"] } }).select('email role skills');
-        console.log('👥 Available users:', allUsers);
-        console.log('🎯 Looking for skills:', relatedskills);
-        console.log('👥 Assigning to user:', user?.email || 'No user found');
-        await Ticket.findByIdAndUpdate(ticket._id, {
-          assignedTo: user?._id || null,
-        });
+        
+        if (user) {
+          await Ticket.findByIdAndUpdate(ticket._id, {
+            assignedTo: user._id,
+          });
+          console.log('🔄 Assigned refreshed ticket to:', user.email);
+        } else {
+          console.log('🔄 No admin/moderator users found!');
+        }
+        
         return user;
-      });
-
-      await step.run("send-email-notification", async () => {
-        if (moderator) {
-          const finalTicket = await Ticket.findById(ticket._id);
-          await sendMail(
-            moderator.email,
-            "Ticket Assigned",
-            `A new ticket is assigned to you: ${encodeURIComponent(finalTicket.title)}`
-          );
-        }
       });
 
       return { success: true };
     } catch (err) {
-      console.error("❌ Error running the step", encodeURIComponent(err.message));
+      console.error("❌ Error refreshing ticket", err.message);
       return { success: false };
     }
   }

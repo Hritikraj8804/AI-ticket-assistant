@@ -80,3 +80,24 @@ export const getTicket = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const updateTicketStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+    
+    if (!['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
+    if (req.user.role === 'user') {
+      return res.status(403).json({ message: 'Only admins/moderators can update status' });
+    }
+    
+    await Ticket.findByIdAndUpdate(id, { status });
+    return res.status(200).json({ message: 'Status updated' });
+  } catch (error) {
+    console.error('Error updating status', error.message);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
