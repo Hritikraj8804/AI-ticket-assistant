@@ -6,7 +6,13 @@ export default function Tickets() {
   const [form, setForm] = useState({ title: "", description: "" });
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("assigned");
+  const [activeTab, setActiveTab] = useState(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (user.role === "user") return "tickets";
+    if (user.role === "moderator") return "assigned";
+    if (user.role === "admin") return "all";
+    return "tickets";
+  });
 
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -50,6 +56,10 @@ export default function Tickets() {
       if (res.ok) {
         setForm({ title: "", description: "" });
         fetchTickets(); // Refresh list
+        // Switch to appropriate tab after creation
+        if (user.role === "moderator") setActiveTab("assigned");
+        if (user.role === "admin") setActiveTab("all");
+        alert("Ticket created successfully!");
       } else {
         alert(data.message || "Ticket creation failed");
       }
@@ -136,6 +146,12 @@ export default function Tickets() {
           {/* Tabs for Moderator */}
           <div className="tabs tabs-bordered mb-6">
             <button 
+              className={`tab tab-bordered ${activeTab === "create" ? 'tab-active' : ''}`}
+              onClick={() => setActiveTab("create")}
+            >
+              ➕ Create Ticket
+            </button>
+            <button 
               className={`tab tab-bordered ${activeTab === "assigned" ? 'tab-active' : ''}`}
               onClick={() => setActiveTab("assigned")}
             >
@@ -153,7 +169,61 @@ export default function Tickets() {
 
       {/* Admin Interface */}
       {user.role === "admin" && (
-        <h2 className="text-2xl font-bold mb-4">All Tickets Overview</h2>
+        <>
+          <h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
+          
+          {/* Tabs for Admin */}
+          <div className="tabs tabs-bordered mb-6">
+            <button 
+              className={`tab tab-bordered ${activeTab === "create" ? 'tab-active' : ''}`}
+              onClick={() => setActiveTab("create")}
+            >
+              ➕ Create Ticket
+            </button>
+            <button 
+              className={`tab tab-bordered ${activeTab === "all" ? 'tab-active' : ''}`}
+              onClick={() => setActiveTab("all")}
+            >
+              📋 All Tickets
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Create Ticket Form for Moderators and Admins */}
+      {(user.role === "moderator" || user.role === "admin") && activeTab === "create" && (
+        <div className="card bg-base-100 shadow mb-6">
+          <div className="card-body">
+            <h3 className="card-title">Create New Ticket</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="form-control">
+                <label className="label">Title</label>
+                <input
+                  name="title"
+                  value={form.title}
+                  onChange={handleChange}
+                  placeholder="Ticket Title"
+                  className="input input-bordered w-full"
+                  required
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">Description</label>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Detailed description of the issue"
+                  className="textarea textarea-bordered w-full h-24"
+                  required
+                ></textarea>
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={loading}>
+                {loading ? "Creating..." : "Create Ticket"}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Tickets Display */}
