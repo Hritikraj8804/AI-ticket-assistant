@@ -58,7 +58,7 @@ A smart ticket management system that uses AI to automatically categorize, prior
 
 ### 1. Clone Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/Hritikraj8804/AI-ticket-assistant.git
 cd ai-ticket-assistant
 ```
 
