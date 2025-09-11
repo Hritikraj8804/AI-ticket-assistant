@@ -203,7 +203,15 @@ export default function AdminPanel() {
         {activeTab === "users" && (
           <div className="card bg-base-100 shadow">
             <div className="card-body">
-              <h2 className="card-title mb-4">User Management</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="card-title">User Management</h2>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => document.getElementById('create-user-modal').showModal()}
+                >
+                  + Create User
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="table table-zebra w-full">
                   <thead>
@@ -241,7 +249,37 @@ export default function AdminPanel() {
                               <button className="btn btn-ghost btn-sm" onClick={() => setEditingUser(null)}>Cancel</button>
                             </div>
                           ) : (
-                            <button className="btn btn-primary btn-sm" onClick={() => handleEditClick(user)}>Edit</button>
+                            <div className="flex gap-2">
+                              <button className="btn btn-primary btn-sm" onClick={() => handleEditClick(user)}>Edit</button>
+                              <button 
+                                className="btn btn-error btn-sm" 
+                                onClick={async () => {
+                                  if (confirm(`Delete user ${user.email}?`)) {
+                                    try {
+                                      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/delete-user`, {
+                                        method: 'DELETE',
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                          Authorization: `Bearer ${token}`
+                                        },
+                                        body: JSON.stringify({ email: user.email })
+                                      });
+                                      const data = await res.json();
+                                      if (res.ok) {
+                                        alert('User deleted successfully');
+                                        fetchUsers();
+                                      } else {
+                                        alert(data.error || 'Delete failed');
+                                      }
+                                    } catch (err) {
+                                      alert('Delete failed');
+                                    }
+                                  }
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -383,6 +421,94 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+
+        {/* Create User Modal */}
+        <dialog id="create-user-modal" className="modal">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">Create New User</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const userData = {
+                email: formData.get('email'),
+                password: formData.get('password'),
+                role: formData.get('role'),
+                skills: Array.from(formData.getAll('skills'))
+              };
+              
+              try {
+                let endpoint;
+                if (userData.role === 'moderator') {
+                  endpoint = 'create-moderator';
+                } else if (userData.role === 'admin') {
+                  endpoint = 'create-admin';
+                } else {
+                  endpoint = 'create-user';
+                }
+                
+                const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/${endpoint}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                  },
+                  body: JSON.stringify(userData)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  alert('User created successfully');
+                  document.getElementById('create-user-modal').close();
+                  e.target.reset();
+                  fetchUsers();
+                } else {
+                  alert(data.error || 'Creation failed');
+                }
+              } catch (err) {
+                alert('Creation failed');
+              }
+            }}>
+              <div className="form-control mb-4">
+                <label className="label">Email</label>
+                <input name="email" type="email" className="input input-bordered" required />
+              </div>
+              
+              <div className="form-control mb-4">
+                <label className="label">Password</label>
+                <input name="password" type="password" className="input input-bordered" required />
+              </div>
+              
+              <div className="form-control mb-4">
+                <label className="label">Role</label>
+                <select name="role" className="select select-bordered" required>
+                  <option value="user">User</option>
+                  <option value="moderator">Moderator</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              
+              <div className="form-control mb-4">
+                <label className="label">Skills (for moderators)</label>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-2">
+                  {[
+                    "React", "Node.js", "JavaScript", "Python", "MongoDB", "PostgreSQL",
+                    "AWS", "Docker", "UI/UX", "Mobile", "DevOps", "Security", "Java",
+                    "PHP", "Vue.js", "Angular", "TypeScript", "Redis", "Kubernetes"
+                  ].map(skill => (
+                    <label key={skill} className="cursor-pointer flex items-center">
+                      <input name="skills" type="checkbox" value={skill} className="checkbox checkbox-xs mr-1" />
+                      <span className="text-xs">{skill}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="modal-action">
+                <button type="submit" className="btn btn-primary">Create User</button>
+                <button type="button" className="btn" onClick={() => document.getElementById('create-user-modal').close()}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
       </div>
     </div>
   );

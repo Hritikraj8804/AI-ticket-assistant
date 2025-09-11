@@ -6,7 +6,9 @@ import {
   updateUser,
   logout,
   createAdmin,
+  createUser,
   createModerator,
+  deleteUser,
   updateProfile,
   refreshOldTickets,
 } from "../controllers/user.js";
@@ -21,7 +23,9 @@ router.post("/signup", signup);
 router.post("/login", login);
 router.post("/logout", authenticate, logout);
 router.post("/create-admin", createAdmin);
+router.post("/create-user", authenticate, createUser);
 router.post("/create-moderator", authenticate, createModerator);
+router.delete("/delete-user", authenticate, deleteUser);
 router.post("/update-profile", authenticate, updateProfile);
 router.post("/refresh-tickets", authenticate, refreshOldTickets);
 

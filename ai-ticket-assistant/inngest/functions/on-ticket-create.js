@@ -87,27 +87,16 @@ export const onTicketCreated = inngest.createFunction(
       const moderator = await step.run("assign-moderator", async () => {
         let user = null;
         if (relatedskills.length > 0) {
-          // First try moderators with matching skills
+          // Only try moderators with matching skills
           user = await User.findOne({
             role: "moderator",
             skills: { $in: relatedskills },
           });
-          
-          // Then try admins with matching skills
-          if (!user) {
-            user = await User.findOne({
-              role: "admin",
-              skills: { $in: relatedskills },
-            });
-          }
         }
         
-        // Fallback: any moderator first, then admin
+        // Fallback: any available moderator (NEVER assign to admin)
         if (!user) {
           user = await User.findOne({ role: "moderator" });
-        }
-        if (!user) {
-          user = await User.findOne({ role: "admin" });
         }
         // Debug: Check available users
         const allUsers = await User.find({ role: { $in: ["moderator", "admin"] } }).select('email role skills');
