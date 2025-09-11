@@ -203,6 +203,39 @@ export const createAdmin = async (req, res) => {
   }
 };
 
+// Create regular user (admin only)
+export const createUser = async (req, res) => {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    
+    const { email, password, skills = [] } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+    
+    const sanitizedSkills = Array.isArray(skills) ? skills.filter(s => typeof s === 'string') : [];
+    
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await User.create({ 
+      email: email.trim().toLowerCase(), 
+      password: hashed, 
+      role: 'user',
+      skills: sanitizedSkills
+    });
+    
+    res.json({ 
+      message: 'User created successfully', 
+      email: user.email,
+      skills: user.skills 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Create moderator with skills (admin only)
 export const createModerator = async (req, res) => {
   try {
@@ -231,6 +264,36 @@ export const createModerator = async (req, res) => {
       email: moderator.email,
       skills: moderator.skills 
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Delete user (admin only)
+export const deleteUser = async (req, res) => {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    
+    const { email } = req.body;
+    const sanitizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    
+    if (!sanitizedEmail) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    
+    // Prevent admin from deleting themselves
+    if (sanitizedEmail === req.user.email) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+    
+    const deletedUser = await User.findOneAndDelete({ email: sanitizedEmail });
+    if (!deletedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: `User ${sanitizedEmail} deleted successfully` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
