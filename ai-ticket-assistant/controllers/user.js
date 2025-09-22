@@ -226,6 +226,8 @@ export const createUser = async (req, res) => {
       skills: sanitizedSkills
     });
     
+
+    
     res.json({ 
       message: 'User created successfully', 
       email: user.email,
@@ -258,6 +260,8 @@ export const createModerator = async (req, res) => {
       role: 'moderator',
       skills: sanitizedSkills
     });
+    
+
     
     res.json({ 
       message: 'Moderator created successfully', 
@@ -298,6 +302,8 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // Update own profile (for existing users to add skills)
 export const updateProfile = async (req, res) => {
