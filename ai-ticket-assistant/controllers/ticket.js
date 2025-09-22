@@ -1,5 +1,6 @@
 import { inngest } from "../inngest/client.js";
 import Ticket from "../models/ticket.js";
+import User from "../models/user.js";
 
 export const createTicket = async (req, res) => {
   try {
@@ -14,6 +15,17 @@ export const createTicket = async (req, res) => {
       description,
       createdBy: req.user._id.toString(),
     });
+
+    // Send ticket creation email to user
+    try {
+      const { emailTemplates, sendMail } = await import('../utils/mailer.js');
+      const user = await User.findById(req.user._id).select('email');
+      const emailContent = emailTemplates.ticketCreated(user.email, newTicket);
+      await sendMail(user.email, emailContent.subject, emailContent.text);
+      console.log('✅ Ticket creation email sent to:', user.email);
+    } catch (emailError) {
+      console.error('❌ Ticket creation email failed:', emailError.message);
+    }
 
     await inngest.send({
       name: "ticket/created",
@@ -116,7 +128,36 @@ export const updateTicketStatus = async (req, res) => {
       return res.status(400).json({ message: 'Cannot update status of cancelled ticket' });
     }
     
-    await Ticket.findByIdAndUpdate(id, { status });
+    const updatedTicket = await Ticket.findByIdAndUpdate(id, { status }, { new: true })
+      .populate('createdBy', 'email')
+      .populate('assignedTo', 'email');
+    
+    // Send email notifications based on status change
+    try {
+      const { emailTemplates, sendMail } = await import('../utils/mailer.js');
+      
+      if (status === 'DONE') {
+        // Notify ticket creator that ticket is completed
+        const emailContent = emailTemplates.ticketCompleted(
+          updatedTicket.createdBy.email, 
+          updatedTicket, 
+          updatedTicket.assignedTo?.email
+        );
+        await sendMail(updatedTicket.createdBy.email, emailContent.subject, emailContent.text);
+        console.log('✅ Completion email sent to:', updatedTicket.createdBy.email);
+      } else if (status === 'CANCELLED') {
+        // Notify ticket creator that ticket is cancelled
+        const emailContent = emailTemplates.ticketCancelled(
+          updatedTicket.createdBy.email, 
+          updatedTicket
+        );
+        await sendMail(updatedTicket.createdBy.email, emailContent.subject, emailContent.text);
+        console.log('✅ Cancellation email sent to:', updatedTicket.createdBy.email);
+      }
+    } catch (emailError) {
+      console.error('❌ Status change email failed:', emailError.message);
+    }
+    
     return res.status(200).json({ message: 'Status updated' });
   } catch (error) {
     console.error('Error updating status', error.message);

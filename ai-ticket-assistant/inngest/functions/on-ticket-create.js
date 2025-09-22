@@ -111,12 +111,16 @@ export const onTicketCreated = inngest.createFunction(
 
       await step.run("send-email-notification", async () => {
         if (moderator) {
-          const finalTicket = await Ticket.findById(ticket._id);
-          await sendMail(
-            moderator.email,
-            "Ticket Assigned",
-            `A new ticket is assigned to you: ${encodeURIComponent(finalTicket.title)}`
-          );
+          const finalTicket = await Ticket.findById(ticket._id).populate('createdBy', 'email');
+          const { emailTemplates } = await import('../../utils/mailer.js');
+          
+          const emailContent = emailTemplates.ticketAssigned(moderator.email, finalTicket);
+          
+          console.log('📧 Sending assignment email to:', moderator.email);
+          await sendMail(moderator.email, emailContent.subject, emailContent.text);
+          console.log('✅ Assignment email sent successfully');
+        } else {
+          console.log('⚠️ No moderator found - email not sent');
         }
       });
 
